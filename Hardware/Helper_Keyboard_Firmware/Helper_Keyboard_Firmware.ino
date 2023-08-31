@@ -1,11 +1,14 @@
 #include "Keyboard.h"
-char ctrlKey = KEY_LEFT_GUI;
+// char ctrlKey = KEY_LEFT_GUI;
 
 volatile int key1 = 0;
 volatile int key2 = 0;
 volatile int key3 = 0;
 volatile int key1PressTimer = 0;
 volatile int key1ReleaseTimer = 0;
+volatile int timerTarget = INT_MAX;
+int buttonDelay = 30; // ms
+
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -20,49 +23,21 @@ void setup() {
 }
 
 void loop() {
-  if (key1PressTimer>0){
-    key1PressTimer++;
-  }
-
-  if (key1ReleaseTimer>0){
-    key1ReleaseTimer++;
-  }
-
-  if (key1PressTimer == 300000) {
+  if (millis() > timerTarget && digitalRead(2) == LOW) {
     Serial.println("Button 1 Pressed!");
-    key1PressTimer = 0;          
+    Keyboard.press('n');
+    timerTarget = INT_MAX;
   }
 
-
-
-   if (key1ReleaseTimer == 300000) {
+  if (millis() > timerTarget && digitalRead(2) == HIGH) {
     Serial.println("Button 1 Released!");
-    key1ReleaseTimer = 0;
+    Keyboard.release('n');
+    timerTarget = INT_MAX;
   }
-
-
 }
 
 void buttonAction() {
-  if (digitalRead(2) == LOW) {
-      if (key1PressTimer == 0) {
-        key1PressTimer = 1;
-    }
-  
-
-    if (key1ReleaseTimer > 0) {
-      key1ReleaseTimer = 0;
-    }
-  } else {
-    if (key1ReleaseTimer == 0) {
-    key1ReleaseTimer = 1;
-
-  }
-  
-    if (key1PressTimer > 0) {
-      key1PressTimer = 0;
-    }
-  }
+  timerTarget = millis() + buttonDelay;
 }
 
 
