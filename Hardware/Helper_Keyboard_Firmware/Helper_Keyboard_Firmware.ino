@@ -1,9 +1,11 @@
 #include "Keyboard.h"
 #include <ArduinoJson.h>
+#include <EEPROM.h>
 // char ctrlKey = KEY_LEFT_GUI;
 
 uint16_t firstModifier1 = UINT16_MAX;
 char key1 = '\0';
+int key1address = 0;
 
 volatile int key1PressTimer = 0;
 volatile int key1ReleaseTimer = 0;
@@ -19,9 +21,16 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(2), buttonAction, CHANGE);  // Attach interrupt
   // put your setup code here, to run once:
   Serial.begin(9600);
+  EEPROM.begin(512);
+
   Keyboard.begin();
   digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
+  delay(1000);
 
+  key1 = EEPROM.read(key1address);
+    Serial.println("Key 1 is ");
+
+  Serial.println(char (EEPROM.read(key1address)));
 }
 
 
@@ -42,9 +51,15 @@ void loop() {
       const char* tempStr = doc["key1"]["value"];
       if (tempStr != nullptr && strlen(tempStr) > 0) {
         key1 = tempStr[0];
+        EEPROM.write(key1address, (int) key1);
+        if (EEPROM.commit()) {
+          Serial.println("EEPROM successfully committed");
+        } else {
+          Serial.println("ERROR! EEPROM commit failed");
+        }
       }
     }
-  
+
     // Do something with values
   }
   
