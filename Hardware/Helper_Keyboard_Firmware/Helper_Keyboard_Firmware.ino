@@ -1,17 +1,16 @@
 #include "Keyboard.h"
 #include <ArduinoJson.h>
 #include <EEPROM.h>
-// char ctrlKey = KEY_LEFT_GUI;
 
 uint16_t firstModifier1 = UINT16_MAX;
 char key1 = '\0';
+uint8_t key1modifier1 = '\0';
 int key1address = 0;
+int key1modifier1address = 1;
 
-volatile int key1PressTimer = 0;
-volatile int key1ReleaseTimer = 0;
 volatile int timerTarget = INT_MAX;
 int buttonDelay = 30; // ms
-String receivedData = "";
+int modifierDelay = 10; //ms
 
 
 void setup() {
@@ -28,12 +27,8 @@ void setup() {
   delay(1000);
 
   key1 = EEPROM.read(key1address);
-    Serial.println("Key 1 is ");
-
-  Serial.println(char (EEPROM.read(key1address)));
+  key1modifier1 = EEPROM.read(key1modifier1address);
 }
-
-
 
 void loop() {
   if (Serial.available()) {
@@ -45,35 +40,71 @@ void loop() {
   
     // Parse the JSON string
     DeserializationError err = deserializeJson(doc, inputString);
-  
+    bool changed = false;
     // Get values
     if (doc.containsKey("key1") && doc["key1"].containsKey("value")) {
       const char* tempStr = doc["key1"]["value"];
       if (tempStr != nullptr && strlen(tempStr) > 0) {
         key1 = tempStr[0];
         EEPROM.write(key1address, (int) key1);
-        if (EEPROM.commit()) {
-          Serial.println("EEPROM successfully committed");
-        } else {
-          Serial.println("ERROR! EEPROM commit failed");
-        }
+        EEPROM.write(key1modifier1address, '\0');
+
+        changed = true;
       }
+
+    if (doc.containsKey("key1") && doc["key1"].containsKey("modifier1")) {
+      const char* modifier = doc["key1"]["modifier1"];
+
+      key1modifier1 = getKeyModifier(modifier);
+      EEPROM.write(key1modifier1address, key1modifier1);
+      changed = true;
+      
     }
 
-    // Do something with values
+    if (changed && EEPROM.commit()) {
+        Serial.println("EEPROM successfully committed");
+      } else {
+        Serial.println("ERROR! EEPROM commit failed");
+      }
+     
+    }
   }
   
   if (millis() > timerTarget && digitalRead(2) == LOW) {
-    Serial.println("Button 1 Pressed!");
+    Keyboard.press(key1modifier1);
+    delay(modifierDelay);
     Keyboard.press(key1);
+
     timerTarget = INT_MAX;
   }
 
   if (millis() > timerTarget && digitalRead(2) == HIGH) {
-    Serial.println("Button 1 Released!");
+    Keyboard.release(key1modifier1);
+    delay(modifierDelay);
     Keyboard.release(key1);
+
     timerTarget = INT_MAX;
   }
+}
+
+uint8_t getKeyModifier(const char* modifier) {
+  if (strcmp(modifier, "Command") == 0) {
+    return KEY_LEFT_GUI;
+  }
+  if (strcmp(modifier, "Control") == 0) {
+    return KEY_LEFT_CTRL;
+  }
+   if (strcmp(modifier, "Shift") == 0) {
+    return KEY_LEFT_SHIFT;
+  }
+  if (strcmp(modifier, "Option") == 0) {
+    return KEY_LEFT_ALT;
+  }
+  if (strcmp(modifier, "Tab") == 0) {
+    return KEY_TAB;
+  }
+
+  return '\0';
 }
 
 void buttonAction() {
